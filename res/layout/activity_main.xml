@@ -8,16 +8,33 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context=".MainActivity" >
 
-
-
     <Button
         android:id="@+id/button1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/textView1"
+        android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
-        android:layout_marginTop="74dp"
-        android:onClick="sendAlert" 
+        android:layout_marginTop="73dp"
+        android:onClick="sendAlert"
         android:text="I Need Help!" />
+
+    <Button
+        android:id="@+id/setName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        android:layout_marginBottom="26dp"
+        android:onClick="setName"
+        android:text="Set" />
+
+    <EditText
+        android:id="@+id/editTextName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/setName"
+        android:layout_alignRight="@+id/button1"
+        android:ems="10"
+        android:hint="Display Name" />
 
 </RelativeLayout>

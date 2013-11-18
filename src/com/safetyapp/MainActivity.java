@@ -1,19 +1,31 @@
 package com.safetyapp;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager.NameNotFoundException;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
@@ -24,6 +36,7 @@ public class MainActivity extends Activity {
 	public static final String EXTRA_MESSAGE = "message";
     public static final String PROPERTY_REG_ID = "registration_id";
     private static final String PROPERTY_APP_VERSION = "appVersion";
+    private static final String PROPERTY_NICKNAME = "nickname";
     private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
 
     //This is the project number from the API Console
@@ -40,6 +53,9 @@ public class MainActivity extends Activity {
     Context context;
 
     String regid;
+    
+    private double lastLat;
+    private double lastLon;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +77,62 @@ public class MainActivity extends Activity {
         } else {
             Log.i(TAG, "No valid Google Play Services APK found.");
         }
+        
+        //Setup Location Tracking
+        
+     // Acquire a reference to the system Location Manager
+     		LocationManager locationManager = (LocationManager) this.getApplication().getSystemService(Context.LOCATION_SERVICE);
+
+     		List<String> providers = locationManager.getProviders(true);
+
+            /* Loop over the array backwards, and if you get an accurate location, then break out the loop*/
+            Location l = null;
+            
+            for (int i=providers.size()-1; i>=0; i--) {
+                    l = locationManager.getLastKnownLocation(providers.get(i));
+                    if (l != null) break;
+            }
+
+            if (l != null) {
+                    lastLat = l.getLatitude();
+                    lastLon = l.getLongitude();
+            }
+            
+            
+     		
+     		// Define a listener that responds to location updates
+     		LocationListener locationListener = new LocationListener() {
+     			
+     			public void onLocationChanged(Location location) {
+     				// Called when a new location is found by the location provider.
+     				lastLat = location.getLatitude();
+     				lastLon = location.getLongitude();
+     				Log.i("SA", "Location Updated to: "+lastLat +", "+lastLon);
+     				updateLocationOnServer();
+     			}
+     			
+     			public void onStatusChanged(String provider, int status,
+    					Bundle extras) {
+    			}
+
+    			public void onProviderEnabled(String provider) {
+    			}
+
+    			public void onProviderDisabled(String provider) {
+    			}
+     		};
+     		
+     	// Register the listener with the Location Manager to receive location
+    		if (locationManager.getAllProviders().contains(
+    				LocationManager.NETWORK_PROVIDER)) {
+    			locationManager.requestLocationUpdates(
+    					LocationManager.NETWORK_PROVIDER, 30000, 10, locationListener);
+    		}
+    		if (locationManager.getAllProviders().contains(
+    				LocationManager.GPS_PROVIDER)) {
+    			locationManager.requestLocationUpdates(
+    					LocationManager.GPS_PROVIDER, 30000, 10, locationListener);
+    		}
     }
     
     @Override
@@ -224,7 +296,85 @@ public class MainActivity extends Activity {
         editor.commit();
     }
     
-    public void sendAlert(View view) {
-    	//Send alert to server
+    private void storeNickName(String name) {
+    	final SharedPreferences prefs = getGCMPreferences(context);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putString(PROPERTY_NICKNAME, name);
+        editor.commit();
     }
+    
+    private String getNickName() {
+        final SharedPreferences prefs = getGCMPreferences(context);
+        String name = prefs.getString(PROPERTY_NICKNAME, "");
+        if (name.isEmpty()) {
+            Log.i(TAG, "Nickname not found.");
+            return "";
+        }
+        return name;
+    }
+    
+    public void setName(View view) {
+    	EditText txt = (EditText) findViewById(R.id.editTextName);
+    	String name = txt.getText().toString();
+    	String rID = getRegistrationId(context);
+    	this.storeNickName(name);
+    	
+    	DownloadWebPageTask task = new DownloadWebPageTask();
+        task.execute(new String[] { "http://cse5473.web44.net/updateName.php?id="+rID+"&name="+name });
+        Log.i(TAG,"http://cse5473.web44.net/updateName.php?id="+rID+"&name="+name);
+        
+        InputMethodManager inputManager = (InputMethodManager)
+                getSystemService(Context.INPUT_METHOD_SERVICE); 
+
+        inputManager.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(),
+                   InputMethodManager.HIDE_NOT_ALWAYS);
+        
+        Toast.makeText(getApplicationContext(), "Display Name Changed to "+name,
+        		   Toast.LENGTH_LONG).show();
+    }
+    
+    public void sendAlert(View view) {
+    	DownloadWebPageTask task = new DownloadWebPageTask();
+        task.execute(new String[] { "http://cse5473.web44.net/recievedAlert.php?name="+getNickName()+"&lat="+lastLat+"&long="+lastLon });
+        Log.i(TAG,"http://cse5473.web44.net/recievedAlert.php?name="+getNickName()+"&lat="+lastLat+"&long="+lastLon);
+    }
+    
+    public void updateLocationOnServer() {
+    	String rID = getRegistrationId(context);
+    	if(!rID.equals("")) {
+    		DownloadWebPageTask task = new DownloadWebPageTask();
+            task.execute(new String[] { "http://cse5473.web44.net/updateLocations.php?id="+rID+"&lat="+lastLat+"&long="+lastLon });
+            Log.i(TAG,"http://cse5473.web44.net/updateLocations.php?id="+rID+"&lat="+lastLat+"&long="+lastLon);
+    	}
+    }
+    
+    private class DownloadWebPageTask extends AsyncTask<String, Void, String> {
+        @Override
+        protected String doInBackground(String... urls) {
+          String response = "";
+          for (String url : urls) {
+            DefaultHttpClient client = new DefaultHttpClient();
+            HttpGet httpGet = new HttpGet(url);
+            try {
+              HttpResponse execute = client.execute(httpGet);
+              InputStream content = execute.getEntity().getContent();
+
+              BufferedReader buffer = new BufferedReader(new InputStreamReader(content));
+              String s = "";
+              while ((s = buffer.readLine()) != null) {
+                response += s;
+              }
+
+            } catch (Exception e) {
+              e.printStackTrace();
+            }
+          }
+          return response;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+
+        }
+      }
 }
