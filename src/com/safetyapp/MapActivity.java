@@ -30,6 +30,8 @@ public class MapActivity extends Activity {
 		// Show the Up button in the action bar.
 		setupActionBar();
 		
+		setTitle("Safety Alert Map");
+		
 		//Set private variables based on push notification payload
 		Bundle extras = getIntent().getExtras();
 		if (extras != null) {

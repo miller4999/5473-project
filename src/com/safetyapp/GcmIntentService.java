@@ -16,7 +16,9 @@
 
 package com.safetyapp;
 
-import com.google.android.gms.gcm.GoogleCloudMessaging;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import android.app.IntentService;
 import android.app.NotificationManager;
@@ -24,9 +26,10 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.SystemClock;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
+
+import com.google.android.gms.gcm.GoogleCloudMessaging;
 
 /**
  * This {@code IntentService} does the actual handling of the GCM message.
@@ -81,10 +84,16 @@ public class GcmIntentService extends IntentService {
         mNotificationManager = (NotificationManager)
                 this.getSystemService(Context.NOTIFICATION_SERVICE);
         
+        List<String> messageComponents = new ArrayList<String>(Arrays.asList(msg.split(",")));
+        
+        /*Log.e("SA",list.get(0));
+        Log.e("SA",list.get(1));
+        Log.e("SA",list.get(2));*/
+        
         Intent intent = new Intent(this, MapActivity.class);
-        intent.putExtra("name", "John Smith");
-        intent.putExtra("lat", "39.999063");
-        intent.putExtra("lon", "-83.017339");
+        intent.putExtra("name", messageComponents.get(0));
+        intent.putExtra("lat", messageComponents.get(1));
+        intent.putExtra("lon", messageComponents.get(2));
         
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
@@ -92,6 +101,8 @@ public class GcmIntentService extends IntentService {
                 intent, PendingIntent.FLAG_UPDATE_CURRENT);
         
         long[] vibraPattern = {0, 1000, 250, 1000 };
+        
+        String nContents = messageComponents.get(0) + " needs help!";
 
         NotificationCompat.Builder mBuilder =
                 new NotificationCompat.Builder(this)
@@ -100,11 +111,13 @@ public class GcmIntentService extends IntentService {
         .setContentTitle("Safety App Alert!")
         .setTicker("New Safety App Alert!")
         .setStyle(new NotificationCompat.BigTextStyle()
-        .bigText(msg))
-        .setContentText(msg);
+        .bigText(nContents))
+        .setContentText(nContents);
 
         mBuilder.setContentIntent(contentIntent);
         mNotificationManager.notify(NOTIFICATION_ID, mBuilder.build());
+        
+        
         getApplication().startActivity(intent);
     }
 }
