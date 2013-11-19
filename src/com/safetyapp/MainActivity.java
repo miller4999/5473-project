@@ -150,6 +150,13 @@ public class MainActivity extends Activity {
     
     public void showMap(View view) {
         Intent intent = new Intent(this, MapActivity.class);
+        Bundle b = new Bundle();
+        final SharedPreferences prefs = getGCMPreferences(context);
+        String name = (String) prefs.getAll().get(PROPERTY_NICKNAME);
+        b.putCharSequence("name",name);
+        b.putDouble("lat", lastLat);
+        b.putDouble("lon", lastLon);
+        intent.putExtras(b);
         startActivity(intent);
     }
     
