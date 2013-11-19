@@ -1,33 +1,25 @@
 package com.safetyapp;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Color;
+import android.location.Location;
+import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.NavUtils;
-import android.util.JsonReader;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -48,7 +40,9 @@ public class MapActivity extends Activity {
 	private double lat,lon;
 	private String directions = "";
 	private boolean wait = true;
-
+	private double lastLat;
+    private double lastLon;
+    
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -58,6 +52,20 @@ public class MapActivity extends Activity {
 		
 		setTitle("Safety Alert Map");
 		
+		LocationManager locationManager = (LocationManager) this.getApplication().getSystemService(Context.LOCATION_SERVICE);
+ 		List<String> providers = locationManager.getProviders(true);
+        /* Loop over the array backwards, and if you get an accurate location, then break out the loop*/
+        Location l = null;
+        for (int i=providers.size()-1; i>=0; i--) {
+                l = locationManager.getLastKnownLocation(providers.get(i));
+                if (l != null) break;
+        }
+
+        if (l != null) {
+                lastLat = l.getLatitude();
+                lastLon = l.getLongitude();
+        }
+		
 		
 		//Set private variables based on push notification payload
 		Bundle extras = getIntent().getExtras();
@@ -65,10 +73,10 @@ public class MapActivity extends Activity {
 		    name = extras.getString("name");
 		    Log.i("SafetyApp","SafetyApp - Sender Name: "+name);
 		    
-		    lat = extras.getDouble("lat");
+		    lat = Double.parseDouble(extras.getString("lat"));
 		    Log.i("SafetyApp", "SafetyApp - Sender Lat: "+lat);
 		    
-		    lon = extras.getDouble("lon");
+		    lon = Double.parseDouble(extras.getString("lon"));
 		    Log.i("SafetyApp", "SafetyApp - Sender Lon: "+lon);
 		}else{
 			Log.i("SafetyApp"," SafetyApp - bundle is empty");
@@ -87,17 +95,24 @@ public class MapActivity extends Activity {
 		
 		//Add new marker from push notification
 		mMap.addMarker(new MarkerOptions()
-		    .position(new LatLng(lat, lon))
-		    .title(name+" needs help!")
-		    .snippet(fmt.format(new Date()))).showInfoWindow();
+	    .position(new LatLng(lat, lon))
+	    .title(name +" needs help here!")
+	    .snippet(fmt.format(new Date()))).showInfoWindow();
 		
 		//Move map camera to alert location
-		CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(new LatLng(lat, lon), 17);
+		CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(new LatLng(lastLat, lastLon), 17);
 	    mMap.animateCamera(cameraUpdate);
+	    
 	    Log.i("SafetyApp"," SafetyApp - map is ready");
     	DownloadWebPageTask task = new DownloadWebPageTask();
-    	String origin = "40.043359,-82.977761";
-    	String dest = "40.052965,-82.986575";
+    	String origin = lastLat +"," + lastLon;
+    	String dest = lat + "," +lon;
+    	
+    	mMap.addMarker(new MarkerOptions()
+	    .position(new LatLng(lastLat, lastLon))
+	    .title("You are here")
+	    ).showInfoWindow();
+    	
     	String url = "http://maps.googleapis.com/maps/api/directions/json?origin=" + origin + "&destination=" + dest + "&sensor=false";
     	Log.i("SafetyApp"," SafetyApp - task started");
     	
@@ -107,19 +122,15 @@ public class MapActivity extends Activity {
     	
     	
     	PolylineOptions path = new PolylineOptions().width(5).color(Color.RED);
-    	//path.add(new LatLng(40.052965, -82.986575));
-    	//path.add(new LatLng(40.043359, -82.977761));
     	
     	
     	List<LatLng> pts = null;
-    	
+    	path.add(new LatLng(lastLat, lastLon));
     	Log.i("SafetyApp"," SafetyApp - get points");
 		pts = getDirections(directions);
     	Log.i("SafetyApp"," SafetyApp - points =  "+ pts);
+    	
     	path.addAll(pts);
-    	//for(int i = 0; i < pts.size(); i++){
-    	//	path.add(pts[i];)
-    	//}
     	Polyline polyline = mMap.addPolyline(path);
 	    
 	    
@@ -134,45 +145,42 @@ public class MapActivity extends Activity {
 	}
 	
 	public List<LatLng> getDirections(String json) {
-		List<LatLng> points = new ArrayList<LatLng>(); 
-		double lat = 0,lon=0;
-
-		Log.i("SafetyApp"," SafetyApp - start reading");
-		String line = "";
+		List<LatLng> points = new ArrayList<LatLng>();
+		double lat1 = 0, lon1 = 0, lat2 = 0, lon2 = 0;
+		Log.i("SafetyApp", " SafetyApp - start reading");
 		String[] jsonArray = json.split(" ");
-		
-		for(int i = 0; i < jsonArray.length; i++){
-			if(jsonArray[i].length() >0){
-			if(jsonArray[i].replace('"',' ').trim().equals("lat")){
-				//Log.i("SafetyApp"," SafetyApp - reading lat " + jsonArray[i+2]);
-				lat = Double.parseDouble(jsonArray[i+2].replace(',',' ').trim());
-			}else if(jsonArray[i].replace('"',' ').trim().equals("lng")){
-				lon = Double.parseDouble(jsonArray[i+2].replace(',',' ').trim());
-				//Log.i("SafetyApp"," SafetyApp - reading lon " + jsonArray[i+2]);
+		boolean start = false;
+		for (int i = 0; i < jsonArray.length; i++) {
+			if(jsonArray[i].replace('"', ' ').trim().equals("steps")){
+				start = true;
 			}
-			if(lat != 0 && lon != 0){
-				points.add(new LatLng(lat, lon));
-				//Log.i("SafetyApp"," SafetyApp - point = " + lat + " " + lon);
-				lat = 0;
-				lon = 0;
+			if (jsonArray[i].length() > 0 && start) {
+				if (jsonArray[i].replace('"', ' ').trim().equals("lat")) {
+					if(lat1 == 0){
+						lat1 = Double.parseDouble(jsonArray[i + 2].replace(',', ' ').trim());
+					}else{
+						lat2 = Double.parseDouble(jsonArray[i + 2].replace(',', ' ').trim());
+					}
+				} else if (jsonArray[i].replace('"', ' ').trim().equals("lng")) {
+					if(lon1 == 0){
+						lon1 = Double.parseDouble(jsonArray[i + 2].replace(',', ' ').trim());
+					}else{
+						lon2 = Double.parseDouble(jsonArray[i + 2].replace(',', ' ').trim());
+					}
+				}
+				if (lat1 != 0 && lon1 != 0 && lat2 != 0 && lon2 != 0) {
+					points.add(new LatLng(lat2, lon2));
+					points.add(new LatLng(lat1, lon1));
+					lat1 = 0;
+					lat2 = 0;
+					lon1 = 0;
+					lon2 = 0;
+				}
 			}
-			}
-			
+
 		}
-//			while((line = br.readLine()) != null){
-//				if(line.equals("lat")){
-//					lat = Double.parseDouble(br.readLine());
-//				}else if(line.equals("lng")){
-//					lon = Double.parseDouble(br.readLine());
-//				}
-//				points.add(new LatLng(lat, lon));
-//				Log.i("SafetyApp"," SafetyApp - point = " + points.get(0));
-//			}
-		
-		
-		
 		return points;
-		
+
 	}
 
 	/**

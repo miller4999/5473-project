@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
     private double lastLat;
     private double lastLon;
 
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -154,8 +155,8 @@ public class MainActivity extends Activity {
         final SharedPreferences prefs = getGCMPreferences(context);
         String name = (String) prefs.getAll().get(PROPERTY_NICKNAME);
         b.putCharSequence("name",name);
-        b.putDouble("lat", lastLat);
-        b.putDouble("lon", lastLon);
+        b.putCharSequence("lat", Double.toString(lastLat));
+        b.putCharSequence("lon", "" + lastLon);
         intent.putExtras(b);
         startActivity(intent);
     }
