@@ -29,6 +29,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
@@ -93,14 +94,22 @@ public class MapActivity extends Activity {
 		
 		SimpleDateFormat fmt = new SimpleDateFormat("h:mm aa M/d/yy");
 		
+
 		//Add new marker from push notification
-		mMap.addMarker(new MarkerOptions()
+		Marker marker2 = mMap.addMarker(new MarkerOptions()
+	    .position(new LatLng(lastLat, lastLon))
+	    .title("You are here"));
+		
+		Marker marker1 = mMap.addMarker(new MarkerOptions()
 	    .position(new LatLng(lat, lon))
 	    .title(name +" needs help here!")
-	    .snippet(fmt.format(new Date()))).showInfoWindow();
+	    .snippet(fmt.format(new Date())));
+	    marker1.showInfoWindow();
+		
+		
 		
 		//Move map camera to alert location
-		CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(new LatLng(lastLat, lastLon), 17);
+		CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(new LatLng((lastLat + lat)/2, (lastLon + lon)/2), 14);
 	    mMap.animateCamera(cameraUpdate);
 	    
 	    Log.i("SafetyApp"," SafetyApp - map is ready");
@@ -108,10 +117,6 @@ public class MapActivity extends Activity {
     	String origin = lastLat +"," + lastLon;
     	String dest = lat + "," +lon;
     	
-    	mMap.addMarker(new MarkerOptions()
-	    .position(new LatLng(lastLat, lastLon))
-	    .title("You are here")
-	    ).showInfoWindow();
     	
     	String url = "http://maps.googleapis.com/maps/api/directions/json?origin=" + origin + "&destination=" + dest + "&sensor=false";
     	Log.i("SafetyApp"," SafetyApp - task started");
