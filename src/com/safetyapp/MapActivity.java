@@ -1,16 +1,24 @@
 package com.safetyapp;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.text.Normalizer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
+import org.xmlpull.v1.XmlPullParserFactory;
 
 import android.app.Activity;
 import android.content.Context;
@@ -23,6 +31,8 @@ import android.support.v4.app.NavUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
 
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -43,6 +53,7 @@ public class MapActivity extends Activity {
 	private boolean wait = true;
 	private double lastLat;
     private double lastLon;
+    List<Map<String,String>> dir = new ArrayList<Map<String,String>>();
     
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -118,26 +129,40 @@ public class MapActivity extends Activity {
     	String dest = lat + "," +lon;
     	
     	
-    	String url = "http://maps.googleapis.com/maps/api/directions/json?origin=" + origin + "&destination=" + dest + "&sensor=false";
+    	String url = "http://maps.googleapis.com/maps/api/directions/xml?origin=" + origin + "&destination=" + dest + "&sensor=false";
     	Log.i("SafetyApp"," SafetyApp - task started");
     	
     	task.execute(url);
     	while (wait);
-    	Log.i("SafetyApp"," SafetyApp - web results "+ directions);
+    	//Log.i("SafetyApp"," SafetyApp - web results "+ directions);
     	
     	
     	PolylineOptions path = new PolylineOptions().width(5).color(Color.RED);
     	
     	
     	List<LatLng> pts = null;
-    	path.add(new LatLng(lastLat, lastLon));
+    	//path.add(new LatLng(lastLat, lastLon));
     	Log.i("SafetyApp"," SafetyApp - get points");
-		pts = getDirections(directions);
+		try {
+			pts = getDirections(directions);
+		} catch (XmlPullParserException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
     	Log.i("SafetyApp"," SafetyApp - points =  "+ pts);
     	
     	path.addAll(pts);
     	Polyline polyline = mMap.addPolyline(path);
-	    
+    	ListView lv = (ListView) findViewById(R.id.listView1);
+    	Log.i("SafetyApp"," SafetyApp - set list");
+    	SimpleAdapter simpleAdpt = new SimpleAdapter(this, dir, android.R.layout.simple_list_item_1, new String[] {"directions"}, new int[] {android.R.id.text1});
+    	Log.i("SafetyApp"," SafetyApp - set list1");
+    	lv.setAdapter(simpleAdpt);
+    	Log.i("SafetyApp"," SafetyApp - set list2");
+
 	    
 //	    double latf = 40.05297;
 //	    double lonf = -82.98658;
@@ -149,43 +174,62 @@ public class MapActivity extends Activity {
 	    
 	}
 	
-	public List<LatLng> getDirections(String json) {
+	public List<LatLng> getDirections(String json) throws XmlPullParserException, IOException {
 		List<LatLng> points = new ArrayList<LatLng>();
 		double lat1 = 0, lon1 = 0, lat2 = 0, lon2 = 0;
+		boolean run = false;
 		Log.i("SafetyApp", " SafetyApp - start reading");
-		String[] jsonArray = json.split(" ");
-		boolean start = false;
-		for (int i = 0; i < jsonArray.length; i++) {
-			if(jsonArray[i].replace('"', ' ').trim().equals("steps")){
-				start = true;
-			}
-			if (jsonArray[i].length() > 0 && start) {
-				if (jsonArray[i].replace('"', ' ').trim().equals("lat")) {
-					if(lat1 == 0){
-						lat1 = Double.parseDouble(jsonArray[i + 2].replace(',', ' ').trim());
-					}else{
-						lat2 = Double.parseDouble(jsonArray[i + 2].replace(',', ' ').trim());
-					}
-				} else if (jsonArray[i].replace('"', ' ').trim().equals("lng")) {
-					if(lon1 == 0){
-						lon1 = Double.parseDouble(jsonArray[i + 2].replace(',', ' ').trim());
-					}else{
-						lon2 = Double.parseDouble(jsonArray[i + 2].replace(',', ' ').trim());
-					}
-				}
-				if (lat1 != 0 && lon1 != 0 && lat2 != 0 && lon2 != 0) {
-					points.add(new LatLng(lat2, lon2));
-					points.add(new LatLng(lat1, lon1));
-					lat1 = 0;
-					lat2 = 0;
-					lon1 = 0;
-					lon2 = 0;
-				}
-			}
+		XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
+		factory.setNamespaceAware(true);
+		XmlPullParser xpp = factory.newPullParser();
+		xpp.setInput( new StringReader ( json ) );
 
+		int eventType = xpp.getEventType();
+		while (eventType != XmlPullParser.END_DOCUMENT) {
+			
+			if(eventType == XmlPullParser.START_TAG) {
+				String tag = xpp.getName();
+				if(tag.equals("lat") && run){
+					eventType = xpp.next();
+					String num = xpp.getText();
+					lat1 = Double.parseDouble(num);
+					
+
+				}else if(tag.equals("lng") && run){
+					eventType = xpp.next();
+					String num = xpp.getText();
+					lon1 = Double.parseDouble(num);
+					
+				}else if(tag.equals("step")){
+					Log.i("SafetyApp", " SafetyApp - run = true");
+					run = true;
+				}else if(tag.equals("html_instructions") && run){
+					eventType = xpp.next();
+					String temp = xpp.getText();
+					temp = temp.replaceAll("\\<.*?>"," ");
+					Log.i("SafetyApp", " SafetyApp - directions = " + temp);
+					Map <String, String> entry = new HashMap<String, String>();
+					entry.put("directions", temp);
+					dir.add(entry);
+					
+				}
+			} else if(eventType == XmlPullParser.END_TAG) {
+				
+				String tag = xpp.getName();
+				if(tag.equals("step")){
+					Log.i("SafetyApp", " SafetyApp - run = false");
+					run = false;
+				}
+			}
+			if (lat1 != 0 && lon1 != 0 ) {
+				points.add(new LatLng(lat1, lon1));
+				lat1 = 0;
+				lon1 = 0;
+			}
+			eventType = xpp.next();
 		}
+		System.out.println("End document");
 		return points;
-
 	}
 
 	/**
