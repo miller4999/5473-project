@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.http.HttpResponse;
@@ -31,7 +32,10 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 
+
+
 public class MainActivity extends Activity {
+	
 	
 	public static final String EXTRA_MESSAGE = "message";
     public static final String PROPERTY_REG_ID = "registration_id";
@@ -46,6 +50,7 @@ public class MainActivity extends Activity {
      * Tag used on log messages.
      */
     static final String TAG = "SafetyApp";
+    String groupId;
     
     GoogleCloudMessaging gcm;
     AtomicInteger msgId = new AtomicInteger();
@@ -134,10 +139,26 @@ public class MainActivity extends Activity {
     			locationManager.requestLocationUpdates(
     					LocationManager.GPS_PROVIDER, 30000, 10, locationListener);
     		}
+    		
+    		DownloadWebPageTask task = new DownloadWebPageTask();
+    		String url = "http://cse5473.web44.net/getInviteCode.php?id=" + regid;
+    		
+    		try {
+				groupId = task.execute(url).get();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (ExecutionException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			groupId = groupId.replaceAll("\\<.*?>"," ");
+    		Log.i("SafetyApp"," SafetyApp - group num created " + groupId);
     }
     
     @Override
     protected void onResume() {
+    	
         super.onResume();
         checkPlayServices();
     }
@@ -150,12 +171,13 @@ public class MainActivity extends Activity {
     }
     
     public void showMap(View view) {
+    	Log.i("SafetyApp"," SafetyApp - Enter ShowMap" );
         Intent intent = new Intent(this, MapActivity.class);
         Bundle b = new Bundle();
         final SharedPreferences prefs = getGCMPreferences(context);
         String name = (String) prefs.getAll().get(PROPERTY_NICKNAME);
         b.putCharSequence("name",name);
-        b.putCharSequence("lat", Double.toString(lastLat));
+        b.putCharSequence("lat", "" + lastLat);
         b.putCharSequence("lon", "" + lastLon);
         intent.putExtras(b);
         startActivity(intent);
@@ -304,7 +326,9 @@ public class MainActivity extends Activity {
         editor.commit();
     }
     
-    private void storeNickName(String name) {
+    public void storeNickName(String name) {
+
+    	Log.i("SafetyApp"," SafetyApp - storeName");
     	final SharedPreferences prefs = getGCMPreferences(context);
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString(PROPERTY_NICKNAME, name);
@@ -321,31 +345,66 @@ public class MainActivity extends Activity {
         return name;
     }
     
-    public void setName(View view) {
-    	EditText txt = (EditText) findViewById(R.id.editTextName);
-    	String name = txt.getText().toString();
+    
+    public void setName1(String name){
+    	Log.i("SafetyApp"," SafetyApp - setname1");
     	String rID = getRegistrationId(context);
     	this.storeNickName(name);
+    	
+    	Log.i("SafetyApp"," SafetyApp - storeName2 " + rID);
     	
     	DownloadWebPageTask task = new DownloadWebPageTask();
         task.execute(new String[] { "http://cse5473.web44.net/updateName.php?id="+rID+"&name="+name });
         Log.i(TAG,"http://cse5473.web44.net/updateName.php?id="+rID+"&name="+name);
+        Log.i("SafetyApp"," SafetyApp - storeName3 " );
         
         InputMethodManager inputManager = (InputMethodManager)
                 getSystemService(Context.INPUT_METHOD_SERVICE); 
-
-        inputManager.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(),
-                   InputMethodManager.HIDE_NOT_ALWAYS);
-        
+        Log.i("SafetyApp"," SafetyApp - storeName4 " );
+        //inputManager.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(),
+          //         InputMethodManager.HIDE_NOT_ALWAYS);
+        Log.i("SafetyApp"," SafetyApp - storeName5 " );
         Toast.makeText(getApplicationContext(), "Display Name Changed to "+name,
         		   Toast.LENGTH_LONG).show();
+        Log.i("SafetyApp"," SafetyApp - storeName6 " );
     }
     
     public void sendAlert(View view) {
     	DownloadWebPageTask task = new DownloadWebPageTask();
-        task.execute(new String[] { "http://cse5473.web44.net/recievedAlert.php?name="+getNickName()+"&lat="+lastLat+"&long="+lastLon });
+        task.execute(new String[] { "http://cse5473.web44.net/recievedAlert.php?name="+getNickName()+"&lat="+lastLat+"&long="+lastLon + "&id=" + regid });
         Log.i(TAG,"http://cse5473.web44.net/recievedAlert.php?name="+getNickName()+"&lat="+lastLat+"&long="+lastLon);
     }
+    
+    public void gotoOptions(View view){
+        Intent intent = new Intent(this, Options.class);
+        Bundle b = new Bundle();
+        final SharedPreferences prefs = getGCMPreferences(context);
+        String name = (String) prefs.getAll().get(PROPERTY_NICKNAME);
+        b.putCharSequence("name",name);
+        b.putCharSequence("regid", regid);
+        b.putCharSequence("groupId", groupId);
+        intent.putExtras(b);
+        startActivityForResult(intent,1);
+    }
+    
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+
+		Log.i("SafetyApp"," SafetyApp - result code");
+    	  if (requestCode == 1) {
+
+    	     if(resultCode == RESULT_OK){      
+    	         String result = data.getStringExtra("result");
+    	         Log.i("SafetyApp"," SafetyApp - result code = " + result);
+    	         setName1(result);
+    	         Log.i("SafetyApp"," SafetyApp - done!!");
+    	         
+    	         
+    	     }
+    	     if (resultCode == RESULT_CANCELED) {    
+    	         //Write your code if there's no result
+    	     }
+    	  }
+    	}
     
     public void updateLocationOnServer() {
     	String rID = getRegistrationId(context);

@@ -57,6 +57,7 @@ public class MapActivity extends Activity {
     
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		Log.i("SafetyApp"," SafetyApp - Enter Map" );
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_map);
 		// Show the Up button in the action bar.
@@ -78,6 +79,7 @@ public class MapActivity extends Activity {
                 lastLon = l.getLongitude();
         }
 		
+
 		
 		//Set private variables based on push notification payload
 		Bundle extras = getIntent().getExtras();

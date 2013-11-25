@@ -7,21 +7,24 @@
     <uses-sdk
         android:minSdkVersion="11"
         android:targetSdkVersion="15" />
-    
-	<uses-permission android:name="android.permission.INTERNET"/>
-	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-	<uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES"/>
-	<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-	<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-	<uses-permission android:name="android.permission.VIBRATE"/>
-	
-	<uses-permission android:name="com.google.android.c2dm.permission.RECEIVE"/>
-	<uses-permission android:name="android.permission.GET_ACCOUNTS"/>
-	<uses-permission android:name="android.permission.WAKE_LOCK"/>
-	
-	<permission android:name="com.safetyapp.permission.C2D_MESSAGE" android:protectionLevel="signature" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <permission
+        android:name="com.safetyapp.permission.C2D_MESSAGE"
+        android:protectionLevel="signature" />
+
     <uses-permission android:name="com.safetyapp.permission.C2D_MESSAGE" />
+    <uses-permission android:name="android.permission.SEND_SMS"/>
 
     <application
         android:allowBackup="true"
@@ -29,15 +32,17 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <receiver
-            android:name=".GcmBroadcastReceiver"
+            android:name="com.safetyapp.GcmBroadcastReceiver"
             android:permission="com.google.android.c2dm.permission.SEND" >
             <intent-filter>
                 <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+
                 <category android:name="com.safetyapp" />
             </intent-filter>
         </receiver>
-        <service android:name=".GcmIntentService" />
-        
+
+        <service android:name="com.safetyapp.GcmIntentService" />
+
         <activity
             android:name="com.safetyapp.MainActivity"
             android:label="@string/app_name" >
@@ -55,18 +60,18 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.safetyapp.MainActivity" />
         </activity>
-        
-        
-        
-        
+
         <meta-data
-    		android:name="com.google.android.maps.v2.API_KEY"
-    		android:value="AIzaSyChF6BLveH5U_1krNm_3APKXtE0k-W0EJg"/>
-        
-        <meta-data 
+            android:name="com.google.android.maps.v2.API_KEY"
+            android:value="AIzaSyChF6BLveH5U_1krNm_3APKXtE0k-W0EJg" />
+        <meta-data
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
-            
+
+        <activity
+            android:name="com.safetyapp.Options"
+            android:label="@string/title_activity_options" >
+        </activity>
     </application>
 
 </manifest>
